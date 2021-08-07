@@ -35,6 +35,10 @@ RUN apt-get update -y \
     && rm -rf /var/lib/apt/lists/* \
     && ln -s /usr/bin/bazel-${BAZEL_VERSION} /usr/bin/bazel
 
+# WORKDIR /tmp
+RUN wget -O /usr/local/bin/buildifier https://github.com/bazelbuild/buildtools/releases/download/4.0.1/buildifier-linux-amd64 && \
+    chmod +x /usr/local/bin/buildifier
+
 
 # with 2.0.20, building opencv simd version failed...
 ARG EMSCRIPTEN_VERSION=2.0.14
