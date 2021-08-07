@@ -40,9 +40,9 @@ RUN wget -O /usr/local/bin/buildifier https://github.com/bazelbuild/buildtools/r
     chmod +x /usr/local/bin/buildifier
 
 
+FROM base AS emsdk
 # with 2.0.20, building opencv simd version failed...
-ARG EMSCRIPTEN_VERSION=2.0.14
-
+ARG EMSCRIPTEN_VERSION=2.0.26-lto
 # ### EMSCRIPTEN for base
 WORKDIR /
 RUN git clone https://github.com/emscripten-core/emsdk.git --depth 1
@@ -54,19 +54,19 @@ FROM base AS tensorflow_setup
 
 ### Tensorflow
 WORKDIR /
-RUN git clone https://github.com/tensorflow/tensorflow.git tensorflow_src
-RUN git -C /tensorflow_src checkout 9d461da4cb0af2f737bbfc68cca3f6445f1ceb60  # May 15, 2021 latest
+RUN git clone https://github.com/tensorflow/tensorflow.git tensorflow_src -b v2.6.0-rc2
+# RUN git -C /tensorflow_src checkout 9d461da4cb0af2f737bbfc68cca3f6445f1ceb60  # May 15, 2021 latest
 
 RUN sed -i 's/"crosstool_top": "\/\/external:android\/emscripten"/"crosstool_top": "\/\/emscripten_toolchain\/everything"/' /tensorflow_src/tensorflow/BUILD
 
 ### MediaPipe
-ARG MEDIAPIPE_VERSION=v0.8.4
+ARG MEDIAPIPE_VERSION=v0.8.6
 WORKDIR /
 RUN git clone https://github.com/google/mediapipe.git -b ${MEDIAPIPE_VERSION} --depth 1
 
 
 ### STAGE: OpenCV_builder
-FROM base AS opencv_builder
+FROM emsdk AS opencv_builder
 ARG OPENCV_VERSION=4.5.3
 
 WORKDIR /
@@ -103,7 +103,7 @@ RUN mkdir -p /opencv_build/wasm      && /emsdk/upstream/emscripten/emmake cmake 
 RUN mkdir -p /opencv_build/wasm_simd && /emsdk/upstream/emscripten/emmake cmake --install /opencv/build_wasm_simd --prefix /build_wasm_simd
 
 # ### STAGE:onnx_builder
-# FROM base AS onnx_builder
+# FROM emsdk AS onnx_builder
 # ARG ONNXRT_VERSION=v1.8.2
 # WORKDIR /
 # RUN git clone https://github.com/microsoft/onnxruntime.git -b ${ONNXRT_VERSION} --depth 1
@@ -120,7 +120,7 @@ RUN tar zxvf halide.tar.gz
 RUN mv Halide-* Halide
 
 ### STAGE: spdlog_builder
-FROM base AS spdlog_builder
+FROM emsdk AS spdlog_builder
 WORKDIR /
 RUN git clone https://github.com/gabime/spdlog.git
 WORKDIR /spdlog/build_wasm
@@ -129,7 +129,7 @@ RUN /emsdk/upstream/emscripten/emmake cmake --build .
 RUN /emsdk/upstream/emscripten/emmake cmake --install . --prefix /build_wasm
 
 ###
-FROM base AS wasm_builder
+FROM emsdk AS wasm_builder
 WORKDIR /
 COPY --from=tensorflow_setup /tensorflow_src /tensorflow_src
 COPY --from=tensorflow_setup /mediapipe /mediapipe
