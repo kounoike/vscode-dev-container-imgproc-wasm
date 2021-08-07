@@ -1,0 +1,50 @@
+name: Push Container Image
+
+on:   
+  push:
+    # `master`をDockerの`latest`イメージとして公開。.
+    branches:
+      - master
+
+    # `v1.2.3`タグをリリースとして公開。
+    tags:
+      - v*
+
+env:
+  IMAGE_NAME: imgproc-wasm
+
+jobs:
+  # GitHub Packagesにイメージをプッシュ。
+  # https://docs.docker.com/docker-hub/builds/ も参照
+  push:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build image
+        run: docker build . --file Dockerfile --tag $IMAGE_NAME --label "runnumber=${GITHUB_RUN_ID}"
+
+      - name: Log into registry
+        # ここでPATをGITHUB_TOKENに更新
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push image
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
+
+          # すべての大文字を小文字に変換
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          # git refのプレフィックスをバージョンから除去
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          # "v"プレフィックスをタグ名から除去
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          # Dockerの`latest`タグ記法を使用
+          [ "$VERSION" == "master" ] && VERSION=latest
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$VERSION
+          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+          docker push $IMAGE_ID:$VERSION
