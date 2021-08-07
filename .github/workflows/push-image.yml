@@ -27,8 +27,8 @@ jobs:
 
       - name: Build image
         run: |
-          # docker build . --file Dockerfile --target onnx_builder
-          docker build . --file Dockerfile --tag $IMAGE_NAME --label "runnumber=${GITHUB_RUN_ID}"
+          # docker build devcontainer-imgproc-wasm --file Dockerfile --target onnx_builder
+          docker build devcontainer-imgproc-wasm --file Dockerfile --tag $IMAGE_NAME --label "runnumber=${GITHUB_RUN_ID}"
 
       - name: Log into registry
         # ここでPATをGITHUB_TOKENに更新
