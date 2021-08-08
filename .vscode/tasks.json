@@ -1,0 +1,20 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build meet sample",
+            "type": "shell",
+            "command": "sh",
+            "args": ["-c", "bazel build --config wasm_simd -c opt :wasm && tar xvf bazel-bin/wasm -C ../public/wasm"],
+            "options": {
+                "cwd": "${workspaceFolder}/sample/meet-segmentation/wasm"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
