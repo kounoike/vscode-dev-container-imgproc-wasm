@@ -93,14 +93,17 @@ ENV OPENCV_CONFIG_FLAG="\
 WORKDIR /opencv
 RUN python3  platforms/js/build_js.py build_wasm              ${OPENCV_CONFIG_FLAG} # --cmake_option=-DCMAKE_INSTALL_PREFIX=/opencv_build/wasm
 RUN python3  platforms/js/build_js.py build_wasm_simd         ${OPENCV_CONFIG_FLAG} # --cmake_option=-DCMAKE_INSTALL_PREFIX=/opencv_build/wasm_simd --simd
+RUN python3  platforms/js/build_js.py build_wasm_simd_thread  ${OPENCV_CONFIG_FLAG} # --cmake_option=-DCMAKE_INSTALL_PREFIX=/opencv_build/wasm_simd --simd --threads
 
 ENV OPENCV_JS_WHITELIST /opencv/platforms/js/opencv_js.config.py
 
-RUN /emsdk/upstream/emscripten/emmake cmake --build /opencv/build_wasm      --parallel $(nproc)
-RUN /emsdk/upstream/emscripten/emmake cmake --build /opencv/build_wasm_simd --parallel $(nproc)
+RUN /emsdk/upstream/emscripten/emmake cmake --build /opencv/build_wasm             --parallel $(nproc)
+RUN /emsdk/upstream/emscripten/emmake cmake --build /opencv/build_wasm_simd        --parallel $(nproc)
+RUN /emsdk/upstream/emscripten/emmake cmake --build /opencv/build_wasm_simd_thread --parallel $(nproc)
 
-RUN mkdir -p /opencv_build/wasm      && /emsdk/upstream/emscripten/emmake cmake --install /opencv/build_wasm      --prefix /build_wasm
-RUN mkdir -p /opencv_build/wasm_simd && /emsdk/upstream/emscripten/emmake cmake --install /opencv/build_wasm_simd --prefix /build_wasm_simd
+RUN mkdir -p /opencv_build/wasm      && /emsdk/upstream/emscripten/emmake cmake --install /opencv/build_wasm             --prefix /build_wasm
+RUN mkdir -p /opencv_build/wasm_simd && /emsdk/upstream/emscripten/emmake cmake --install /opencv/build_wasm_simd        --prefix /build_wasm_simd
+RUN mkdir -p /opencv_build/wasm_simd && /emsdk/upstream/emscripten/emmake cmake --install /opencv/build_wasm_simd_thread --prefix /build_wasm_simd_thread
 
 # ### STAGE:onnx_builder
 # FROM emsdk AS onnx_builder
@@ -136,6 +139,7 @@ COPY --from=tensorflow_setup /mediapipe /mediapipe
 
 COPY --from=opencv_builder /build_wasm /build_wasm
 COPY --from=opencv_builder /build_wasm_simd /build_wasm_simd
+COPY --from=opencv_builder /build_wasm_simd /build_wasm_simd_thread
 # COPY --from=onnx_builder /onnxruntime /onnxruntime
 COPY --from=halide_builder /Halide /Halide
 COPY --from=spdlog_builder /build_wasm /build_wasm
