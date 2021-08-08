@@ -6,7 +6,6 @@
                 "${workspaceFolder}/sample/meet-segmentation/wasm/bazel-wasm/external/flatbuffers/include",
                 "/mediapipe",
                 "/tensorflow_src",
-                "/tensorflow_src",
                 "/build_wasm/include/opencv4",
                 "/build_wasm/include",
                 "/emsdk/upstream/emscripten/system/include",
