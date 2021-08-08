@@ -118,6 +118,12 @@ RUN cmake --install /opencv/build_wasm_simd         --prefix /build_wasm_simd
 # RUN cmake --install /opencv/build_wasm_threads      --prefix /build_wasm_threads
 # RUN cmake --install /opencv/build_wasm_simd_threads --prefix /build_wasm_simd_threads
 
+## build for host
+WORKDIR /opencv/build_native
+RUN cmake $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS}) ..
+RUN cmake --build . --parallel $(nproc)
+# RUN cmake --install . --prefix /usr/local
+
 # ### STAGE:onnx_builder
 # FROM emsdk AS onnx_builder
 # ARG ONNXRT_VERSION=v1.8.2
@@ -131,9 +137,15 @@ FROM emsdk AS spdlog_builder
 WORKDIR /
 RUN git clone https://github.com/gabime/spdlog.git
 WORKDIR /spdlog/build_wasm
-RUN /emsdk/upstream/emscripten/emmake cmake ..
-RUN /emsdk/upstream/emscripten/emmake cmake --build .
-RUN /emsdk/upstream/emscripten/emmake cmake --install . --prefix /build_wasm
+RUN /emsdk/upstream/emscripten/emcmake cmake ..
+RUN cmake --build .
+RUN cmake --install . --prefix /build_wasm
+
+## build for host
+WORKDIR /spdlog/build_native
+RUN cmake ..
+RUN cmake --build .
+# RUN cmake --install .
 
 ###
 FROM emsdk AS wasm_builder
@@ -147,7 +159,11 @@ COPY --from=opencv_builder /build_wasm /build_wasm
 COPY --from=opencv_builder /build_wasm_simd /build_wasm_simd
 # COPY --from=opencv_builder /build_wasm_threads /build_wasm_threads
 # COPY --from=opencv_builder /build_wasm_simd_threads /build_wasm_simd_threads
+COPY --from=opencv_builder /opencv /opencv
+RUN cmake --install /opencv/build_native --prefix /usr/local
 
 # COPY --from=onnx_builder /onnxruntime /onnxruntime
 
 COPY --from=spdlog_builder /build_wasm /build_wasm
+COPY --from=spdlog_builder /spdlog /spdlog
+RUN cmake --install /spdlog/build_native --prefix /usr/local
