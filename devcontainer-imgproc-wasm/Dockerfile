@@ -75,35 +75,35 @@ RUN git -C /opencv checkout -b ${OPENCV_VERSION}
 RUN git clone https://github.com/kounoike/opencv_contrib.git -b 4.5.3-simd --depth 1
 RUN git -C /opencv_contrib checkout 4.5.3-simd
 
-ENV OPENCV_CONFIG_FLAG="\
+ENV OPENCV_CMAKE_FLAGS="\
+    -DOPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
+    -DBUILD_LIST=core,imgproc,calib3d,video,ximgproc \
+    -DBUILD_opencv_imgcodecs=ON \
+    -DBUILD_opencv_js=OFF \
+    -DWITH_PNG=ON \
+    -DWITH_JPEG=ON \
+    -DWITH_TIFF=OFF \
+    -DWITH_WEBP=ON \
+    -DWITH_OPENJPEG=OFF \
+    -DWITH_JASPER=OFF \
+    -DWITH_OPENEXR=OFF \
+"
+
+ENV OPENCV_CONFIG_FLAG_EMSCRIPTEN="\
     --config_only \
     --emscripten_dir=/emsdk/upstream/emscripten \
-    --cmake_option=-DOPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
-    --cmake_option=-DBUILD_LIST=core,imgproc,calib3d,video,ximgproc \
-    --cmake_option=-DBUILD_opencv_imgcodecs=ON \
-    --cmake_option=-DBUILD_opencv_js=OFF \
-    --cmake_option=-DWITH_PNG=ON \
-    --cmake_option=-DWITH_JPEG=ON \
-    --cmake_option=-DWITH_TIFF=OFF \
-    --cmake_option=-DWITH_WEBP=ON \
-    --cmake_option=-DWITH_OPENJPEG=OFF \
-    --cmake_option=-DWITH_JASPER=OFF \
-    --cmake_option=-DWITH_OPENEXR=OFF \
 "
 WORKDIR /opencv
-RUN python3  platforms/js/build_js.py build_wasm              ${OPENCV_CONFIG_FLAG} # --cmake_option=-DCMAKE_INSTALL_PREFIX=/opencv_build/wasm
-RUN python3  platforms/js/build_js.py build_wasm_simd         ${OPENCV_CONFIG_FLAG} # --cmake_option=-DCMAKE_INSTALL_PREFIX=/opencv_build/wasm_simd --simd
-RUN python3  platforms/js/build_js.py build_wasm_simd_thread  ${OPENCV_CONFIG_FLAG} # --cmake_option=-DCMAKE_INSTALL_PREFIX=/opencv_build/wasm_simd --simd --threads
+RUN python3  platforms/js/build_js.py build_wasm             $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
+RUN python3  platforms/js/build_js.py build_wasm_simd --simd $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
 
 ENV OPENCV_JS_WHITELIST /opencv/platforms/js/opencv_js.config.py
 
 RUN cmake --build /opencv/build_wasm             --parallel $(nproc)
 RUN cmake --build /opencv/build_wasm_simd        --parallel $(nproc)
-RUN cmake --build /opencv/build_wasm_simd_thread --parallel $(nproc)
 
 RUN mkdir -p /opencv_build/wasm      && cmake --install /opencv/build_wasm             --prefix /build_wasm
 RUN mkdir -p /opencv_build/wasm_simd && cmake --install /opencv/build_wasm_simd        --prefix /build_wasm_simd
-RUN mkdir -p /opencv_build/wasm_simd && cmake --install /opencv/build_wasm_simd_thread --prefix /build_wasm_simd_thread
 
 # ### STAGE:onnx_builder
 # FROM emsdk AS onnx_builder
