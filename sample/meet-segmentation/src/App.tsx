@@ -105,9 +105,16 @@ const App = () => {
       const endWasm = performance.now()
   
       const outCtx = outCanvas.getContext('2d')!
+
+      outCtx.filter = 'blur(5px)'
+      outCtx.drawImage(video, 0, 0)
+      outCtx.filter = 'none'
+
       const outputImageBufferOffset = wasm._getOutputImageBuffer() 
       const outImageData = new ImageData(new Uint8ClampedArray(wasm.HEAPU8.slice(outputImageBufferOffset, outputImageBufferOffset + width * height * 4)), width, height)
-      outCtx.putImageData(outImageData, 0, 0)
+      const maskedImageCanvas = new OffscreenCanvas(width, height)
+      maskedImageCanvas.getContext('2d')!.putImageData(outImageData, 0, 0)
+      outCtx.drawImage(maskedImageCanvas, 0, 0)
 
       const endJs = performance.now()
       const wasmDuration = endWasm - startWasm

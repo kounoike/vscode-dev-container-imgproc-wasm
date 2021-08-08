@@ -120,9 +120,6 @@ int exec(int width, int height) {
   cv::Mat tfOutputMaskMat(tensorHeight, tensorWidth, CV_32FC2, tfOutput);
   cv::Mat outputImageMat(height, width, CV_8UC4, outputImageBuffer);
 
-  cv::Mat blurredMat;
-  cv::GaussianBlur(inputImageMat, blurredMat, cv::Size(9, 9), 0.0);
-
   cv::Mat resizedOutputMaskMat(height, width, CV_32FC2);
   {
     std::vector<cv::Mat> inferenceOutputs;
@@ -133,9 +130,10 @@ int exec(int width, int height) {
     cv::Mat maskMat;
     floatMaskMat.convertTo(maskMat, CV_8U, 255, 0);
     cv::resize(maskMat, maskMat, outputImageMat.size(), 0.0, 0.0, cv::INTER_CUBIC);
-
-    blurredMat.copyTo(outputImageMat);
-    inputImageMat.copyTo(outputImageMat, maskMat);
+    std::vector<cv::Mat> channels;
+    cv::split(inputImageMat, channels);
+    channels[3] = maskMat;
+    cv::merge(channels, outputImageMat);
   }
 
   spdlog::trace("postprocess done.");
