@@ -64,6 +64,13 @@ ARG MEDIAPIPE_VERSION=v0.8.6
 WORKDIR /
 RUN git clone https://github.com/google/mediapipe.git -b ${MEDIAPIPE_VERSION} --depth 1
 
+### STAGE: halide_builder
+FROM base AS halide_builder
+ENV HALIDE_RELEASE_PKG=https://github.com/halide/Halide/releases/download/v12.0.1/Halide-12.0.1-x86-64-linux-5dabcaa9effca1067f907f6c8ea212f3d2b1d99a.tar.gz
+WORKDIR /
+RUN wget -O halide.tar.gz ${HALIDE_RELEASE_PKG}
+RUN tar zxvf halide.tar.gz
+RUN mv Halide-* Halide
 
 ### STAGE: OpenCV_builder
 FROM emsdk AS opencv_builder
@@ -94,16 +101,22 @@ ENV OPENCV_CONFIG_FLAG_EMSCRIPTEN="\
     --emscripten_dir=/emsdk/upstream/emscripten \
 "
 WORKDIR /opencv
-RUN python3  platforms/js/build_js.py build_wasm             $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
-RUN python3  platforms/js/build_js.py build_wasm_simd --simd $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
+RUN python3  platforms/js/build_js.py build_wasm                               $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
+RUN python3  platforms/js/build_js.py build_wasm_simd --simd                   $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
+# RUN python3  platforms/js/build_js.py build_wasm_threads --threads             $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
+# RUN python3  platforms/js/build_js.py build_wasm_simd_threads --simd --threads $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
 
 ENV OPENCV_JS_WHITELIST /opencv/platforms/js/opencv_js.config.py
 
-RUN cmake --build /opencv/build_wasm             --parallel $(nproc)
-RUN cmake --build /opencv/build_wasm_simd        --parallel $(nproc)
+RUN cmake --build /opencv/build_wasm              --parallel $(nproc)
+RUN cmake --build /opencv/build_wasm_simd         --parallel $(nproc)
+# RUN cmake --build /opencv/build_wasm_threads      --parallel $(nproc)
+# RUN cmake --build /opencv/build_wasm_simd_threads --parallel $(nproc)
 
-RUN mkdir -p /opencv_build/wasm      && cmake --install /opencv/build_wasm             --prefix /build_wasm
-RUN mkdir -p /opencv_build/wasm_simd && cmake --install /opencv/build_wasm_simd        --prefix /build_wasm_simd
+RUN cmake --install /opencv/build_wasm              --prefix /build_wasm
+RUN cmake --install /opencv/build_wasm_simd         --prefix /build_wasm_simd
+# RUN cmake --install /opencv/build_wasm_threads      --prefix /build_wasm_threads
+# RUN cmake --install /opencv/build_wasm_simd_threads --prefix /build_wasm_simd_threads
 
 # ### STAGE:onnx_builder
 # FROM emsdk AS onnx_builder
@@ -112,15 +125,6 @@ RUN mkdir -p /opencv_build/wasm_simd && cmake --install /opencv/build_wasm_simd 
 # RUN git clone https://github.com/microsoft/onnxruntime.git -b ${ONNXRT_VERSION} --depth 1
 # WORKDIR /onnxruntime
 # RUN python3 tools/ci_build/build.py --build_dir /onnxruntime/build/wasm --build_wasm --enable_wasm_threads --config Release --parallel --skip_tests
-
-
-### STAGE: halide_builder
-FROM base AS halide_builder
-ENV HALIDE_RELEASE_PKG=https://github.com/halide/Halide/releases/download/v12.0.1/Halide-12.0.1-x86-64-linux-5dabcaa9effca1067f907f6c8ea212f3d2b1d99a.tar.gz
-WORKDIR /
-RUN wget -O halide.tar.gz ${HALIDE_RELEASE_PKG}
-RUN tar zxvf halide.tar.gz
-RUN mv Halide-* Halide
 
 ### STAGE: spdlog_builder
 FROM emsdk AS spdlog_builder
@@ -137,9 +141,13 @@ WORKDIR /
 COPY --from=tensorflow_setup /tensorflow_src /tensorflow_src
 COPY --from=tensorflow_setup /mediapipe /mediapipe
 
+COPY --from=halide_builder /Halide /Halide
+
 COPY --from=opencv_builder /build_wasm /build_wasm
 COPY --from=opencv_builder /build_wasm_simd /build_wasm_simd
-COPY --from=opencv_builder /build_wasm_simd /build_wasm_simd_thread
+# COPY --from=opencv_builder /build_wasm_threads /build_wasm_threads
+# COPY --from=opencv_builder /build_wasm_simd_threads /build_wasm_simd_threads
+
 # COPY --from=onnx_builder /onnxruntime /onnxruntime
-COPY --from=halide_builder /Halide /Halide
+
 COPY --from=spdlog_builder /build_wasm /build_wasm
