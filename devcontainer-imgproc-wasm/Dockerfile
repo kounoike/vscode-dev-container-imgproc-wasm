@@ -97,13 +97,13 @@ RUN python3  platforms/js/build_js.py build_wasm_simd_thread  ${OPENCV_CONFIG_FL
 
 ENV OPENCV_JS_WHITELIST /opencv/platforms/js/opencv_js.config.py
 
-RUN /emsdk/upstream/emscripten/emmake cmake --build /opencv/build_wasm             --parallel $(nproc)
-RUN /emsdk/upstream/emscripten/emmake cmake --build /opencv/build_wasm_simd        --parallel $(nproc)
-RUN /emsdk/upstream/emscripten/emmake cmake --build /opencv/build_wasm_simd_thread --parallel $(nproc)
+RUN cmake --build /opencv/build_wasm             --parallel $(nproc)
+RUN cmake --build /opencv/build_wasm_simd        --parallel $(nproc)
+RUN cmake --build /opencv/build_wasm_simd_thread --parallel $(nproc)
 
-RUN mkdir -p /opencv_build/wasm      && /emsdk/upstream/emscripten/emmake cmake --install /opencv/build_wasm             --prefix /build_wasm
-RUN mkdir -p /opencv_build/wasm_simd && /emsdk/upstream/emscripten/emmake cmake --install /opencv/build_wasm_simd        --prefix /build_wasm_simd
-RUN mkdir -p /opencv_build/wasm_simd && /emsdk/upstream/emscripten/emmake cmake --install /opencv/build_wasm_simd_thread --prefix /build_wasm_simd_thread
+RUN mkdir -p /opencv_build/wasm      && cmake --install /opencv/build_wasm             --prefix /build_wasm
+RUN mkdir -p /opencv_build/wasm_simd && cmake --install /opencv/build_wasm_simd        --prefix /build_wasm_simd
+RUN mkdir -p /opencv_build/wasm_simd && cmake --install /opencv/build_wasm_simd_thread --prefix /build_wasm_simd_thread
 
 # ### STAGE:onnx_builder
 # FROM emsdk AS onnx_builder
