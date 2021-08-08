@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/mediapipe",
+                "/tensorflow_src",
+                "/tensorflow_src/",
+                "/build_wasm/include/opencv4",
+                "/build_wasm/include",
+                "/emsdk/upstream/emscripten/system/include",
+                "/usr/include/c++/9"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c11",
+            "cppStandard": "c++14",
+            "intelliSenseMode": "linux-clang-x64"
+        }
+    ],
+    "version": 4
+}
