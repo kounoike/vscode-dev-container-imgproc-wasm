@@ -60,8 +60,15 @@ new_local_repository(
 # OpenCV Wasm SIMD
 new_local_repository(
     name = "opencv_simd",
-    path = "/build_wasm_simd",
+    path = "/build_wasm",
     build_file = "opencv_simd.BUILD",
+)
+
+# OpenCV Wasm SIMD threads
+new_local_repository(
+    name = "opencv_simd_thread",
+    path = "/build_wasm_simd_thread",
+    build_file = "opencv_simd_thread.BUILD",
 )
 
 # spdlog
