@@ -10,6 +10,10 @@ on:
     tags:
       - v*
 
+    # devcontainer-imgproc-wasmの下を更新しない限りビルド・プッシュしない
+    paths:
+      - devcontainer-imgproc-wasm/**
+
 env:
   IMAGE_NAME: imgproc-wasm
 
