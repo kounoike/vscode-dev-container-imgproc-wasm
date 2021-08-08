@@ -1,0 +1,32 @@
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "build_bazel_rules_nodejs",
+    sha256 = "0f2de53628e848c1691e5729b515022f5a77369c76a09fbe55611e12731c90e3",
+    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/2.0.1/rules_nodejs-2.0.1.tar.gz"],
+)
+
+load("@build_bazel_rules_nodejs//:index.bzl", "npm_install")
+
+# emscripten 2.0.26
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
+    name = "emsdk",
+    strip_prefix = "emsdk-a3d65c80d32c3e584b7aab41d516a0043b2a5e84/bazel",
+    url = "https://github.com/emscripten-core/emsdk/archive/a3d65c80d32c3e584b7aab41d516a0043b2a5e84.tar.gz",
+    sha256 = "ff6505ca267acac611e450c8b81c89ece33e5254f74428ba42d8c5f7cb3abd1e",
+)
+
+
+load("@emsdk//:deps.bzl", emsdk_deps = "deps")
+emsdk_deps()
+
+load("@emsdk//:emscripten_deps.bzl", emsdk_emscripten_deps = "emscripten_deps")
+emsdk_emscripten_deps()
+
+# spdlog
+new_local_repository(
+  name = "spdlog",
+  path = "/build_wasm",
+  build_file = "spdlog.BUILD",
+)
