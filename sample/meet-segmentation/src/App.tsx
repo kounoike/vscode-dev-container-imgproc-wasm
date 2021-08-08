@@ -129,8 +129,8 @@ const App = () => {
       }
       setChartData(prev => [...(prev.length >= 500 ? prev.slice(1) : prev), data])
     }
-    ;(webcamRef.current!.video as any).requestVideoFrameCallback(render)
-    return () => {}
+    const cancelId = (webcamRef.current!.video as any).requestVideoFrameCallback(render)
+    return () => (webcamRef.current!.video as any).cancelVideoFrameCallback(cancelId)
   }, [wasmModuleState])
 
   React.useEffect(
