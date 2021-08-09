@@ -90,14 +90,20 @@ int exec(int width, int height) {
   // 前処理
   spdlog::trace("start preprocess");
   auto startPreprocess = std::chrono::system_clock::now();
+  spdlog::trace("inputImageMat");
   cv::Mat inputImageMat(height, width, CV_8UC4, inputImageBuffer);
+  spdlog::trace("tfInputImageMat");
   cv::Mat tfInputImageMat(tensorHeight, tensorWidth, CV_32FC3, tfInput);
+  spdlog::trace("floatInputImageMat");
   cv::Mat floatInputImageMat(height, width, CV_32FC3, floatInputImageBuffer);
   {
     // RGBA2RGB + 8U->32F by LUT
     cv::Mat inputImageRGBMat;
+    spdlog::trace("RGBA2RGB");
     cv::cvtColor(inputImageMat, inputImageRGBMat, cv::COLOR_RGBA2RGB);
+    spdlog::trace("convertTo");
     inputImageRGBMat.convertTo(floatInputImageMat, CV_32F, 1.0 / 255.0, 0.0);
+    spdlog::trace("resize");
     cv::resize(floatInputImageMat, tfInputImageMat, tfInputImageMat.size(), 0, 0, cv::INTER_LANCZOS4);
   }
   spdlog::trace("preprocessing done.");

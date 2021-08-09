@@ -64,6 +64,31 @@ ARG MEDIAPIPE_VERSION=v0.8.6
 WORKDIR /
 RUN git clone https://github.com/google/mediapipe.git -b ${MEDIAPIPE_VERSION} --depth 1
 
+### STAGE: tensorflow_build
+FROM tensorflow_setup AS tensorflow_build
+COPY --from=emsdk /emsdk /emsdk
+RUN echo 'install(TARGETS tensorflow-lite EXPORT tensorflow-lite-config ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include PRIVATE_HEADER DESTINATION include)' >> /tensorflow_src/tensorflow/lite/CMakeLists.txt
+RUN echo 'install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/ DESTINATION include/tensorflow/lite MESSAGE_NEVER FILES_MATCHING PATTERN "*.h")' >> /tensorflow_src/tensorflow/lite/CMakeLists.txt
+RUN echo 'install(DIRECTORY ${CMAKE_BINARY_DIR}/flatbuffers/include/ DESTINATION include MESSAGE_NEVER FILES_MATCHING PATTERN "*.h")' >> /tensorflow_src/tensorflow/lite/CMakeLists.txt
+RUN echo 'install(DIRECTORY ${CMAKE_BINARY_DIR}/ DESTINATION lib/tensorflow-lite MESSAGE_NEVER FILES_MATCHING PATTERN "*.a")' >> /tensorflow_src/tensorflow/lite/CMakeLists.txt
+
+WORKDIR /tflite_build_wasm
+RUN /emsdk/upstream/emscripten/emcmake cmake \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DTFLITE_TARGET_PRIVATE_OPTIONS=-msimd128 \
+  -DOVERRIDABLE_FETCH_CONTENT_xnnpack_GIT_REPOSITORY=https://github.com/kounoike/XNNPACK \
+  -DOVERRIDABLE_FETCH_CONTENT_xnnpack_GIT_TAG=50e155bff9e4757039a9720b7ea279fcfde789dd \
+  -DTFLITE_ENABLE_RUY=ON \
+  -DTFLITE_ENABLE_RESOURCE=ON \
+  -DTFLITE_ENABLE_NNAPI=OFF \
+  -DTFLITE_ENABLE_MMAP=ON \
+  -DXNNPACK_LIBRARY_TYPE=static \
+  -DXNNPACK_BUILD_WASM_WITH_SIMD=ON \
+  -DXNNPACK_BUILD_TESTS=OFF \
+  -DXNNPACK_BUILD_BENCHMARKS=OFF /tensorflow_src/tensorflow/lite
+RUN cmake --build . --parallel $(nproc) --config Release
+RUN cmake --install . --prefix /build_wasm_simd --config Release
+
 ### STAGE: halide_builder
 FROM base AS halide_builder
 ENV HALIDE_RELEASE_PKG=https://github.com/halide/Halide/releases/download/v12.0.1/Halide-12.0.1-x86-64-linux-5dabcaa9effca1067f907f6c8ea212f3d2b1d99a.tar.gz
@@ -150,7 +175,7 @@ RUN cmake --build .
 ###
 FROM emsdk AS wasm_builder
 WORKDIR /
-COPY --from=tensorflow_setup /tensorflow_src /tensorflow_src
+COPY --from=tensorflow_build /tensorflow_src /tensorflow_src
 COPY --from=tensorflow_setup /mediapipe /mediapipe
 
 COPY --from=halide_builder /Halide /Halide
@@ -167,3 +192,6 @@ RUN cmake --install /opencv/build_native --prefix /usr/local
 COPY --from=spdlog_builder /build_wasm /build_wasm
 COPY --from=spdlog_builder /spdlog /spdlog
 RUN cmake --install /spdlog/build_native --prefix /usr/local
+
+COPY --from=tensorflow_build /build_wasm_simd /build_wasm_simd
+COPY --from=tensorflow_build /tflite_build_wasm /tflite_build_wasm
