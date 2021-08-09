@@ -172,7 +172,7 @@ RUN cmake --build .
 FROM base AS halide_setup
 ENV HALIDE_RELEASE_PKG=https://github.com/halide/Halide/releases/download/v12.0.1/Halide-12.0.1-x86-64-linux-5dabcaa9effca1067f907f6c8ea212f3d2b1d99a.tar.gz
 WORKDIR /usr/local
-RUN curl -fsqSL ${HALIDE_RELEASE_PKG} | tar xf - --strip-components 1
+RUN curl -fsqSL ${HALIDE_RELEASE_PKG} | tar zxf - --strip-components 1
 
 ###
 FROM halide_setup AS wasm_builder
