@@ -7,6 +7,7 @@ RUN apt-get update \
     && apt-get -y install --no-install-recommends \
         ca-certificates \
         gnupg \
+        ninja-build \
         python \
         python3-dev \
         python3-numpy \
