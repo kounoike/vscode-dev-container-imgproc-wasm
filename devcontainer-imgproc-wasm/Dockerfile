@@ -7,6 +7,7 @@ RUN apt-get update \
     && apt-get -y install --no-install-recommends \
         ca-certificates \
         gnupg \
+        libgtest-dev \
         ninja-build \
         python \
         python3-dev \
@@ -37,7 +38,7 @@ RUN apt-get update -y \
     && ln -s /usr/bin/bazel-${BAZEL_VERSION} /usr/bin/bazel
 
 # WORKDIR /tmp
-RUN wget -O /usr/local/bin/buildifier https://github.com/bazelbuild/buildtools/releases/download/4.0.1/buildifier-linux-amd64 && \
+RUN wget -q -O /usr/local/bin/buildifier https://github.com/bazelbuild/buildtools/releases/download/4.0.1/buildifier-linux-amd64 && \
     chmod +x /usr/local/bin/buildifier
 
 
@@ -86,17 +87,11 @@ RUN /emsdk/upstream/emscripten/emcmake cmake \
   -DXNNPACK_LIBRARY_TYPE=static \
   -DXNNPACK_BUILD_WASM_WITH_SIMD=ON \
   -DXNNPACK_BUILD_TESTS=OFF \
-  -DXNNPACK_BUILD_BENCHMARKS=OFF /tensorflow_src/tensorflow/lite
+  -DXNNPACK_BUILD_BENCHMARKS=OFF \
+  -GNinja \
+  /tensorflow_src/tensorflow/lite
 RUN cmake --build . --parallel $(nproc) --config Release
 RUN cmake --install . --prefix /build_wasm_simd --config Release
-
-### STAGE: halide_builder
-FROM base AS halide_builder
-ENV HALIDE_RELEASE_PKG=https://github.com/halide/Halide/releases/download/v12.0.1/Halide-12.0.1-x86-64-linux-5dabcaa9effca1067f907f6c8ea212f3d2b1d99a.tar.gz
-WORKDIR /
-RUN wget -O halide.tar.gz ${HALIDE_RELEASE_PKG}
-RUN tar zxvf halide.tar.gz
-RUN mv Halide-* Halide
 
 ### STAGE: OpenCV_builder
 FROM emsdk AS opencv_builder
@@ -125,14 +120,14 @@ ENV OPENCV_CMAKE_FLAGS="\
 ENV OPENCV_CONFIG_FLAG_EMSCRIPTEN="\
     --config_only \
     --emscripten_dir=/emsdk/upstream/emscripten \
+    --cmake_option=-GNinja \
 "
+
 WORKDIR /opencv
 RUN python3  platforms/js/build_js.py build_wasm                               $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
 RUN python3  platforms/js/build_js.py build_wasm_simd --simd                   $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
 # RUN python3  platforms/js/build_js.py build_wasm_threads --threads             $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
 # RUN python3  platforms/js/build_js.py build_wasm_simd_threads --simd --threads $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
-
-ENV OPENCV_JS_WHITELIST /opencv/platforms/js/opencv_js.config.py
 
 RUN cmake --build /opencv/build_wasm              --parallel $(nproc)
 RUN cmake --build /opencv/build_wasm_simd         --parallel $(nproc)
@@ -173,13 +168,17 @@ RUN cmake ..
 RUN cmake --build .
 # RUN cmake --install .
 
+### STAGE: halide_setup
+FROM base AS halide_setup
+ENV HALIDE_RELEASE_PKG=https://github.com/halide/Halide/releases/download/v12.0.1/Halide-12.0.1-x86-64-linux-5dabcaa9effca1067f907f6c8ea212f3d2b1d99a.tar.gz
+WORKDIR /usr/local
+RUN curl -fsqSL ${HALIDE_RELEASE_PKG} | tar xf - --strip-components 1
+
 ###
-FROM emsdk AS wasm_builder
+FROM halide_setup AS wasm_builder
 WORKDIR /
 COPY --from=tensorflow_build /tensorflow_src /tensorflow_src
 COPY --from=tensorflow_setup /mediapipe /mediapipe
-
-COPY --from=halide_builder /Halide /Halide
 
 COPY --from=opencv_builder /build_wasm /build_wasm
 COPY --from=opencv_builder /build_wasm_simd /build_wasm_simd
