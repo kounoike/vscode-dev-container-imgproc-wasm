@@ -7,7 +7,9 @@ RUN apt-get update \
     && apt-get -y install --no-install-recommends \
         ca-certificates \
         gnupg \
+        libjpeg-dev \
         libgtest-dev \
+        libpng-dev \
         ninja-build \
         python \
         python3-dev \
@@ -174,12 +176,6 @@ FROM emsdk AS runtime_builder
 ENV HALIDE_RELEASE_PKG=https://github.com/halide/Halide/releases/download/v12.0.1/Halide-12.0.1-x86-64-linux-5dabcaa9effca1067f907f6c8ea212f3d2b1d99a.tar.gz
 WORKDIR /usr
 RUN curl -fsqSL ${HALIDE_RELEASE_PKG} | tar zxf - --strip-components 1
-RUN apt-get update \
-    && apt-get -y install --no-install-recommends \
-        libjpeg-dev \
-        libpng-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
 
 
 ###
