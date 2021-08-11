@@ -168,14 +168,22 @@ RUN cmake ..
 RUN cmake --build .
 # RUN cmake --install .
 
-### STAGE: halide_setup
-FROM base AS halide_setup
-ENV HALIDE_RELEASE_PKG=https://github.com/halide/Halide/releases/download/v12.0.1/Halide-12.0.1-x86-64-linux-5dabcaa9effca1067f907f6c8ea212f3d2b1d99a.tar.gz
-WORKDIR /usr/local
-RUN curl -fsqSL ${HALIDE_RELEASE_PKG} | tar zxf - --strip-components 1
 
 ###
-FROM halide_setup AS wasm_builder
+FROM emsdk AS runtime_builder
+ENV HALIDE_RELEASE_PKG=https://github.com/halide/Halide/releases/download/v12.0.1/Halide-12.0.1-x86-64-linux-5dabcaa9effca1067f907f6c8ea212f3d2b1d99a.tar.gz
+WORKDIR /usr
+RUN curl -fsqSL ${HALIDE_RELEASE_PKG} | tar zxf - --strip-components 1
+RUN apt-get update \
+    && apt-get -y install --no-install-recommends \
+        libjpeg-dev \
+        libpng-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+
+###
+FROM runtime_builder AS wasm_builder
 WORKDIR /
 COPY --from=tensorflow_build /tensorflow_src /tensorflow_src
 COPY --from=tensorflow_setup /mediapipe /mediapipe
