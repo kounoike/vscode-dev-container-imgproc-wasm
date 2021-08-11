@@ -58,7 +58,7 @@ FROM base AS tensorflow_setup
 
 ### Tensorflow
 WORKDIR /
-RUN git clone https://github.com/tensorflow/tensorflow.git tensorflow_src -b v2.6.0-rc2
+RUN git clone https://github.com/tensorflow/tensorflow.git tensorflow_src -b v2.6.0
 # RUN git -C /tensorflow_src checkout 9d461da4cb0af2f737bbfc68cca3f6445f1ceb60  # May 15, 2021 latest
 
 RUN sed -i 's/"crosstool_top": "\/\/external:android\/emscripten"/"crosstool_top": "\/\/emscripten_toolchain\/everything"/' /tensorflow_src/tensorflow/BUILD
@@ -94,6 +94,24 @@ RUN /emsdk/upstream/emscripten/emcmake cmake \
   /tensorflow_src/tensorflow/lite
 RUN cmake --build . --parallel $(nproc) --config Release
 RUN cmake --install . --prefix /build_wasm_simd --config Release
+
+WORKDIR /build
+RUN cmake \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DOVERRIDABLE_FETCH_CONTENT_xnnpack_GIT_REPOSITORY=https://github.com/kounoike/XNNPACK \
+  -DOVERRIDABLE_FETCH_CONTENT_xnnpack_GIT_TAG=50e155bff9e4757039a9720b7ea279fcfde789dd \
+  -DTFLITE_ENABLE_RUY=ON \
+  -DTFLITE_ENABLE_RESOURCE=ON \
+  -DTFLITE_ENABLE_NNAPI=OFF \
+  -DTFLITE_ENABLE_MMAP=ON \
+  -DXNNPACK_LIBRARY_TYPE=static \
+  -DXNNPACK_BUILD_TESTS=OFF \
+  -DXNNPACK_BUILD_BENCHMARKS=OFF \
+  -GNinja \
+  /tensorflow_src/tensorflow/lite
+RUN cmake --build . --parallel $(nproc) --config Release
+RUN cmake --install . --prefix /usr --config Release
+
 
 ### STAGE: OpenCV_builder
 FROM emsdk AS opencv_builder
