@@ -45,8 +45,7 @@ RUN wget -q -O /usr/local/bin/buildifier https://github.com/bazelbuild/buildtool
 
 
 FROM base AS emsdk
-# with 2.0.20, building opencv simd version failed...
-ARG EMSCRIPTEN_VERSION=2.0.26-lto
+ARG EMSCRIPTEN_VERSION=2.0.28
 # ### EMSCRIPTEN for base
 WORKDIR /
 RUN git clone https://github.com/emscripten-core/emsdk.git --depth 1
@@ -64,7 +63,7 @@ RUN git clone https://github.com/tensorflow/tensorflow.git tensorflow_src -b v2.
 RUN sed -i 's/"crosstool_top": "\/\/external:android\/emscripten"/"crosstool_top": "\/\/emscripten_toolchain\/everything"/' /tensorflow_src/tensorflow/BUILD
 
 ### MediaPipe
-ARG MEDIAPIPE_VERSION=v0.8.6
+ARG MEDIAPIPE_VERSION=v0.8.7
 WORKDIR /
 RUN git clone https://github.com/google/mediapipe.git -b ${MEDIAPIPE_VERSION} --depth 1
 
@@ -135,6 +134,7 @@ ENV OPENCV_CMAKE_FLAGS="\
     -DWITH_OPENJPEG=OFF \
     -DWITH_JASPER=OFF \
     -DWITH_OPENEXR=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
 "
 
 ENV OPENCV_CONFIG_FLAG_EMSCRIPTEN="\
@@ -192,7 +192,7 @@ RUN cmake --build .
 ###
 FROM emsdk AS runtime_builder
 ENV HALIDE_RELEASE_PKG=https://github.com/halide/Halide/releases/download/v12.0.1/Halide-12.0.1-x86-64-linux-5dabcaa9effca1067f907f6c8ea212f3d2b1d99a.tar.gz
-WORKDIR /usr
+WORKDIR /Halide
 RUN curl -fsqSL ${HALIDE_RELEASE_PKG} | tar zxf - --strip-components 1
 
 
