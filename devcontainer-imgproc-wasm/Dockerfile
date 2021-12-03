@@ -4,20 +4,27 @@ FROM mcr.microsoft.com/vscode/devcontainers/cpp:0-${VARIANT} AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
-    && apt-get -y install --no-install-recommends \
-        ca-certificates \
-        gnupg \
-        libjpeg-dev \
-        libgtest-dev \
-        libpng-dev \
-        ninja-build \
-        python \
-        python3-dev \
-        python3-numpy \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+  && apt-get -y install --no-install-recommends \
+  ca-certificates \
+  firefox \
+  fonts-liberation \
+  gnupg \
+  libappindicator1 \
+  libdrm2 \
+  libgbm1 \
+  libjpeg-dev \
+  libgtest-dev \
+  libnss3 \
+  libpng-dev \
+  ninja-build \
+  python \
+  python3-dev \
+  python3-numpy \
+  xdg-utils \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
-ARG BAZEL_VERSION=3.7.2
+ARG BAZEL_VERSION=4.2.1
 ## bazel sources.list
 RUN curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/bazel.gpg
 RUN echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.8" > /etc/apt/sources.list.d/bazel.list
@@ -31,21 +38,21 @@ RUN echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.lis
 
 RUN apt-get update && apt-get install -y --no-install-recommends nodejs yarn
 RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends \
-        bazel-${BAZEL_VERSION} \
-        nodejs \
-        yarn \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && ln -s /usr/bin/bazel-${BAZEL_VERSION} /usr/bin/bazel
+  && apt-get install -y --no-install-recommends \
+  bazel-${BAZEL_VERSION} \
+  nodejs \
+  yarn \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/* \
+  && ln -s /usr/bin/bazel-${BAZEL_VERSION} /usr/bin/bazel
 
 # WORKDIR /tmp
 RUN wget -q -O /usr/local/bin/buildifier https://github.com/bazelbuild/buildtools/releases/download/4.0.1/buildifier-linux-amd64 && \
-    chmod +x /usr/local/bin/buildifier
+  chmod +x /usr/local/bin/buildifier
 
 
 FROM base AS emsdk
-ARG EMSCRIPTEN_VERSION=2.0.28
+ARG EMSCRIPTEN_VERSION=3.0.0
 # ### EMSCRIPTEN for base
 WORKDIR /
 RUN git clone https://github.com/emscripten-core/emsdk.git --depth 1
@@ -57,13 +64,13 @@ FROM base AS tensorflow_setup
 
 ### Tensorflow
 WORKDIR /
-RUN git clone https://github.com/tensorflow/tensorflow.git tensorflow_src -b v2.6.0
+RUN git clone https://github.com/tensorflow/tensorflow.git tensorflow_src -b v2.7.0
 # RUN git -C /tensorflow_src checkout 9d461da4cb0af2f737bbfc68cca3f6445f1ceb60  # May 15, 2021 latest
 
 RUN sed -i 's/"crosstool_top": "\/\/external:android\/emscripten"/"crosstool_top": "\/\/emscripten_toolchain\/everything"/' /tensorflow_src/tensorflow/BUILD
 
 ### MediaPipe
-ARG MEDIAPIPE_VERSION=v0.8.7
+ARG MEDIAPIPE_VERSION=v0.8.8
 WORKDIR /
 RUN git clone https://github.com/google/mediapipe.git -b ${MEDIAPIPE_VERSION} --depth 1
 
@@ -114,34 +121,36 @@ RUN cmake --install . --prefix /usr --config Release
 
 ### STAGE: OpenCV_builder
 FROM emsdk AS opencv_builder
-ARG OPENCV_VERSION=4.5.3
+ARG OPENCV_VERSION=4.5.4
 
 WORKDIR /
 RUN git clone https://github.com/opencv/opencv.git -b ${OPENCV_VERSION} --depth 1
 RUN git -C /opencv checkout -b ${OPENCV_VERSION}
-RUN git clone https://github.com/kounoike/opencv_contrib.git -b 4.5.3-simd --depth 1
-RUN git -C /opencv_contrib checkout 4.5.3-simd
+# RUN git clone https://github.com/kounoike/opencv_contrib.git -b 4.5.3-simd --depth 1
+# RUN git -C /opencv_contrib checkout 4.5.3-simd
+RUN git clone https://github.com/opencv/opencv_contrib.git -b ${OPENCV_VERSION} --depth 1
+RUN git -C /opencv_contrib checkout ${OPENCV_VERSION}
 
 ENV OPENCV_CMAKE_FLAGS="\
-    -DOPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
-    -DBUILD_LIST=core,imgproc,calib3d,video,ximgproc \
-    -DBUILD_opencv_imgcodecs=ON \
-    -DBUILD_opencv_js=OFF \
-    -DWITH_PNG=ON \
-    -DWITH_JPEG=ON \
-    -DWITH_TIFF=OFF \
-    -DWITH_WEBP=ON \
-    -DWITH_OPENJPEG=OFF \
-    -DWITH_JASPER=OFF \
-    -DWITH_OPENEXR=OFF \
-    -DCMAKE_BUILD_TYPE=Release \
-"
+  -DOPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
+  -DBUILD_LIST=core,imgproc,calib3d,video,ximgproc \
+  -DBUILD_opencv_imgcodecs=ON \
+  -DBUILD_opencv_js=OFF \
+  -DWITH_PNG=ON \
+  -DWITH_JPEG=ON \
+  -DWITH_TIFF=OFF \
+  -DWITH_WEBP=ON \
+  -DWITH_OPENJPEG=OFF \
+  -DWITH_JASPER=OFF \
+  -DWITH_OPENEXR=OFF \
+  -DCMAKE_BUILD_TYPE=Release \
+  "
 
 ENV OPENCV_CONFIG_FLAG_EMSCRIPTEN="\
-    --config_only \
-    --emscripten_dir=/emsdk/upstream/emscripten \
-    --cmake_option=-GNinja \
-"
+  --config_only \
+  --emscripten_dir=/emsdk/upstream/emscripten \
+  --cmake_option=-GNinja \
+  "
 
 WORKDIR /opencv
 RUN python3  platforms/js/build_js.py build_wasm                               $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
