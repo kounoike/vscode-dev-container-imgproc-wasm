@@ -200,7 +200,7 @@ RUN cmake --build .
 
 ###
 FROM emsdk AS runtime_builder
-ENV HALIDE_RELEASE_PKG=https://github.com/halide/Halide/releases/download/v12.0.1/Halide-12.0.1-x86-64-linux-5dabcaa9effca1067f907f6c8ea212f3d2b1d99a.tar.gz
+ENV HALIDE_RELEASE_PKG=https://github.com/halide/Halide/releases/download/v13.0.1/Halide-13.0.1-x86-64-linux-fb39d7e3149c0ee1e848bb9957be2ea18765c35d.tar.gz
 WORKDIR /Halide
 RUN curl -fsqSL ${HALIDE_RELEASE_PKG} | tar zxf - --strip-components 1
 
