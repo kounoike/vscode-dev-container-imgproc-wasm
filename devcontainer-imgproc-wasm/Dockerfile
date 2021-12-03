@@ -174,7 +174,7 @@ RUN cmake --install /opencv/build_wasm_simd         --prefix /build_wasm_simd
 
 ## build for host
 WORKDIR /opencv/build_native
-RUN cmake $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS}) ..
+RUN cmake ${OPENCV_CMAKE_FLAGS} ..
 RUN cmake --build . --parallel $(nproc)
 # RUN cmake --install . --prefix /usr/local
 
