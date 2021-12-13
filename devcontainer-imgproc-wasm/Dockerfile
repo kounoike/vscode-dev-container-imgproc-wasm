@@ -141,7 +141,7 @@ ENV OPENCV_CMAKE_FLAGS="\
   -DBUILD_EXAMPLES=OFF \
   -DBUILD_opencv_apps=OFF \
   -DWITH_PNG=ON \
-  -DWITH_JPEG=ON \
+  -DWITH_JPEG=OFF \
   -DWITH_TIFF=OFF \
   -DWITH_WEBP=ON \
   -DWITH_OPENJPEG=OFF \
@@ -159,18 +159,18 @@ ENV OPENCV_CONFIG_FLAG_EMSCRIPTEN="\
 WORKDIR /opencv
 RUN python3  platforms/js/build_js.py build_wasm                               $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
 RUN python3  platforms/js/build_js.py build_wasm_simd --simd                   $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
-# RUN python3  platforms/js/build_js.py build_wasm_threads --threads             $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
-# RUN python3  platforms/js/build_js.py build_wasm_simd_threads --simd --threads $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
+RUN python3  platforms/js/build_js.py build_wasm_threads --threads             $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
+RUN python3  platforms/js/build_js.py build_wasm_simd_threads --simd --threads $OPENCV_CONFIG_FLAG_EMSCRIPTEN $(sh -c 'for x in "$@"; do echo "--cmake_option=$x"; done' "" ${OPENCV_CMAKE_FLAGS})
 
 RUN cmake --build /opencv/build_wasm              --parallel $(nproc)
 RUN cmake --build /opencv/build_wasm_simd         --parallel $(nproc)
-# RUN cmake --build /opencv/build_wasm_threads      --parallel $(nproc)
-# RUN cmake --build /opencv/build_wasm_simd_threads --parallel $(nproc)
+RUN cmake --build /opencv/build_wasm_threads      --parallel $(nproc)
+RUN cmake --build /opencv/build_wasm_simd_threads --parallel $(nproc)
 
 RUN cmake --install /opencv/build_wasm              --prefix /build_wasm
 RUN cmake --install /opencv/build_wasm_simd         --prefix /build_wasm_simd
-# RUN cmake --install /opencv/build_wasm_threads      --prefix /build_wasm_threads
-# RUN cmake --install /opencv/build_wasm_simd_threads --prefix /build_wasm_simd_threads
+RUN cmake --install /opencv/build_wasm_threads      --prefix /build_wasm_threads
+RUN cmake --install /opencv/build_wasm_simd_threads --prefix /build_wasm_simd_threads
 
 ## build for host
 WORKDIR /opencv/build_native
@@ -217,8 +217,8 @@ COPY --from=tensorflow_setup /mediapipe /mediapipe
 
 COPY --from=opencv_builder /build_wasm /build_wasm
 COPY --from=opencv_builder /build_wasm_simd /build_wasm_simd
-# COPY --from=opencv_builder /build_wasm_threads /build_wasm_threads
-# COPY --from=opencv_builder /build_wasm_simd_threads /build_wasm_simd_threads
+COPY --from=opencv_builder /build_wasm_threads /build_wasm_threads
+COPY --from=opencv_builder /build_wasm_simd_threads /build_wasm_simd_threads
 COPY --from=opencv_builder /opencv /opencv
 RUN cmake --install /opencv/build_native --prefix /usr/local
 
