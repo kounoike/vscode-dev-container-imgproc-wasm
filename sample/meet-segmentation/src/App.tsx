@@ -99,7 +99,7 @@ const App = () => {
       try{
         wasm._exec(width, height)
       } catch (ex) {
-        wasm._showExceptionMsg(ex)
+        wasm._showExceptionMsg(ex as number)
         throw ex
       }
       const endWasm = performance.now()
@@ -131,7 +131,7 @@ const App = () => {
     }
     const cancelId = (webcamRef.current!.video as any).requestVideoFrameCallback(render)
     return () => (webcamRef.current!.video as any).cancelVideoFrameCallback(cancelId)
-  }, [wasmModuleState])
+  }, [wasmModuleState, startTime])
 
   React.useEffect(
     () => {
