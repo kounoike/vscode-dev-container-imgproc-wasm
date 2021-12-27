@@ -52,7 +52,7 @@ RUN wget -q -O /usr/local/bin/buildifier https://github.com/bazelbuild/buildtool
 
 
 FROM base AS emsdk
-ARG EMSCRIPTEN_VERSION=3.0.0
+ARG EMSCRIPTEN_VERSION=3.1.0
 # ### EMSCRIPTEN for base
 WORKDIR /
 RUN git clone https://github.com/emscripten-core/emsdk.git --depth 1
@@ -63,65 +63,66 @@ RUN ./emsdk install ${EMSCRIPTEN_VERSION} && ./emsdk activate ${EMSCRIPTEN_VERSI
 FROM base AS tensorflow_setup
 
 ### Tensorflow
+ARG TENSORFLOW_VERSION=v2.8.0-rc0
 WORKDIR /
-RUN git clone https://github.com/tensorflow/tensorflow.git tensorflow_src -b v2.7.0
+RUN git clone https://github.com/tensorflow/tensorflow.git tensorflow_src -b ${TENSORFLOW_VERSION}
 # RUN git -C /tensorflow_src checkout 9d461da4cb0af2f737bbfc68cca3f6445f1ceb60  # May 15, 2021 latest
 
 RUN sed -i 's/"crosstool_top": "\/\/external:android\/emscripten"/"crosstool_top": "\/\/emscripten_toolchain\/everything"/' /tensorflow_src/tensorflow/BUILD
 
 ### MediaPipe
-ARG MEDIAPIPE_VERSION=v0.8.8
+ARG MEDIAPIPE_VERSION=v0.8.9
 WORKDIR /
 RUN git clone https://github.com/google/mediapipe.git -b ${MEDIAPIPE_VERSION} --depth 1
 
-### STAGE: tensorflow_build
-FROM tensorflow_setup AS tensorflow_build
-COPY --from=emsdk /emsdk /emsdk
-RUN echo 'install(TARGETS tensorflow-lite EXPORT tensorflow-lite-config ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include PRIVATE_HEADER DESTINATION include)' >> /tensorflow_src/tensorflow/lite/CMakeLists.txt
-RUN echo 'install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/ DESTINATION include/tensorflow/lite MESSAGE_NEVER FILES_MATCHING PATTERN "*.h")' >> /tensorflow_src/tensorflow/lite/CMakeLists.txt
-RUN echo 'install(DIRECTORY ${CMAKE_BINARY_DIR}/flatbuffers/include/ DESTINATION include MESSAGE_NEVER FILES_MATCHING PATTERN "*.h")' >> /tensorflow_src/tensorflow/lite/CMakeLists.txt
-RUN echo 'install(DIRECTORY ${CMAKE_BINARY_DIR}/ DESTINATION lib/tensorflow-lite MESSAGE_NEVER FILES_MATCHING PATTERN "*.a")' >> /tensorflow_src/tensorflow/lite/CMakeLists.txt
+# ### STAGE: tensorflow_build
+# FROM tensorflow_setup AS tensorflow_build
+# COPY --from=emsdk /emsdk /emsdk
+# RUN echo 'install(TARGETS tensorflow-lite EXPORT tensorflow-lite-config ARCHIVE DESTINATION lib PUBLIC_HEADER DESTINATION include PRIVATE_HEADER DESTINATION include)' >> /tensorflow_src/tensorflow/lite/CMakeLists.txt
+# RUN echo 'install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/ DESTINATION include/tensorflow/lite MESSAGE_NEVER FILES_MATCHING PATTERN "*.h")' >> /tensorflow_src/tensorflow/lite/CMakeLists.txt
+# RUN echo 'install(DIRECTORY ${CMAKE_BINARY_DIR}/flatbuffers/include/ DESTINATION include MESSAGE_NEVER FILES_MATCHING PATTERN "*.h")' >> /tensorflow_src/tensorflow/lite/CMakeLists.txt
+# RUN echo 'install(DIRECTORY ${CMAKE_BINARY_DIR}/ DESTINATION lib/tensorflow-lite MESSAGE_NEVER FILES_MATCHING PATTERN "*.a")' >> /tensorflow_src/tensorflow/lite/CMakeLists.txt
 
-WORKDIR /tflite_build_wasm
-RUN /emsdk/upstream/emscripten/emcmake cmake \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DTFLITE_TARGET_PRIVATE_OPTIONS=-msimd128 \
-  -DOVERRIDABLE_FETCH_CONTENT_xnnpack_GIT_REPOSITORY=https://github.com/kounoike/XNNPACK \
-  -DOVERRIDABLE_FETCH_CONTENT_xnnpack_GIT_TAG=50e155bff9e4757039a9720b7ea279fcfde789dd \
-  -DTFLITE_ENABLE_RUY=ON \
-  -DTFLITE_ENABLE_RESOURCE=ON \
-  -DTFLITE_ENABLE_NNAPI=OFF \
-  -DTFLITE_ENABLE_MMAP=ON \
-  -DXNNPACK_LIBRARY_TYPE=static \
-  -DXNNPACK_BUILD_WASM_WITH_SIMD=ON \
-  -DXNNPACK_BUILD_TESTS=OFF \
-  -DXNNPACK_BUILD_BENCHMARKS=OFF \
-  -GNinja \
-  /tensorflow_src/tensorflow/lite
-RUN cmake --build . --parallel $(nproc) --config Release
-RUN cmake --install . --prefix /build_wasm_simd --config Release
+# WORKDIR /tflite_build_wasm
+# RUN /emsdk/upstream/emscripten/emcmake cmake \
+#   -DCMAKE_BUILD_TYPE=Release \
+#   -DTFLITE_TARGET_PRIVATE_OPTIONS=-msimd128 \
+#   -DOVERRIDABLE_FETCH_CONTENT_xnnpack_GIT_REPOSITORY=https://github.com/kounoike/XNNPACK \
+#   -DOVERRIDABLE_FETCH_CONTENT_xnnpack_GIT_TAG=50e155bff9e4757039a9720b7ea279fcfde789dd \
+#   -DTFLITE_ENABLE_RUY=ON \
+#   -DTFLITE_ENABLE_RESOURCE=ON \
+#   -DTFLITE_ENABLE_NNAPI=OFF \
+#   -DTFLITE_ENABLE_MMAP=ON \
+#   -DXNNPACK_LIBRARY_TYPE=static \
+#   -DXNNPACK_BUILD_WASM_WITH_SIMD=ON \
+#   -DXNNPACK_BUILD_TESTS=OFF \
+#   -DXNNPACK_BUILD_BENCHMARKS=OFF \
+#   -GNinja \
+#   /tensorflow_src/tensorflow/lite
+# RUN cmake --build . --parallel $(nproc) --config Release
+# RUN cmake --install . --prefix /build_wasm_simd --config Release
 
-WORKDIR /build
-RUN cmake \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DOVERRIDABLE_FETCH_CONTENT_xnnpack_GIT_REPOSITORY=https://github.com/kounoike/XNNPACK \
-  -DOVERRIDABLE_FETCH_CONTENT_xnnpack_GIT_TAG=50e155bff9e4757039a9720b7ea279fcfde789dd \
-  -DTFLITE_ENABLE_RUY=ON \
-  -DTFLITE_ENABLE_RESOURCE=ON \
-  -DTFLITE_ENABLE_NNAPI=OFF \
-  -DTFLITE_ENABLE_MMAP=ON \
-  -DXNNPACK_LIBRARY_TYPE=static \
-  -DXNNPACK_BUILD_TESTS=OFF \
-  -DXNNPACK_BUILD_BENCHMARKS=OFF \
-  -GNinja \
-  /tensorflow_src/tensorflow/lite
-RUN cmake --build . --parallel $(nproc) --config Release
-RUN cmake --install . --prefix /usr --config Release
+# WORKDIR /build
+# RUN cmake \
+#   -DCMAKE_BUILD_TYPE=Release \
+#   -DOVERRIDABLE_FETCH_CONTENT_xnnpack_GIT_REPOSITORY=https://github.com/kounoike/XNNPACK \
+#   -DOVERRIDABLE_FETCH_CONTENT_xnnpack_GIT_TAG=50e155bff9e4757039a9720b7ea279fcfde789dd \
+#   -DTFLITE_ENABLE_RUY=ON \
+#   -DTFLITE_ENABLE_RESOURCE=ON \
+#   -DTFLITE_ENABLE_NNAPI=OFF \
+#   -DTFLITE_ENABLE_MMAP=ON \
+#   -DXNNPACK_LIBRARY_TYPE=static \
+#   -DXNNPACK_BUILD_TESTS=OFF \
+#   -DXNNPACK_BUILD_BENCHMARKS=OFF \
+#   -GNinja \
+#   /tensorflow_src/tensorflow/lite
+# RUN cmake --build . --parallel $(nproc) --config Release
+# RUN cmake --install . --prefix /usr --config Release
 
 
 ### STAGE: OpenCV_builder
 FROM emsdk AS opencv_builder
-ARG OPENCV_VERSION=4.5.4
+ARG OPENCV_VERSION=4.5.5
 
 WORKDIR /
 RUN git clone https://github.com/opencv/opencv.git -b ${OPENCV_VERSION} --depth 1
@@ -212,7 +213,7 @@ RUN curl -fsqSL ${HALIDE_RELEASE_PKG} | tar zxf - --strip-components 1
 ###
 FROM runtime_builder AS wasm_builder
 WORKDIR /
-COPY --from=tensorflow_build /tensorflow_src /tensorflow_src
+COPY --from=tensorflow_setup /tensorflow_src /tensorflow_src
 COPY --from=tensorflow_setup /mediapipe /mediapipe
 
 COPY --from=opencv_builder /build_wasm /build_wasm
@@ -228,5 +229,5 @@ COPY --from=spdlog_builder /build_wasm /build_wasm
 COPY --from=spdlog_builder /spdlog /spdlog
 RUN cmake --install /spdlog/build_native --prefix /usr/local
 
-COPY --from=tensorflow_build /build_wasm_simd /build_wasm_simd
-COPY --from=tensorflow_build /tflite_build_wasm /tflite_build_wasm
+# COPY --from=tensorflow_build /build_wasm_simd /build_wasm_simd
+# COPY --from=tensorflow_build /tflite_build_wasm /tflite_build_wasm
