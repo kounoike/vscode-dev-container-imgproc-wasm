@@ -84,16 +84,28 @@ const App = () => {
     const height = video.videoHeight
     if (width > 0 && height > 0) {
       const startJs = performance.now()
+      console.time()
+      console.time('canvas')
       const inCanvas = new OffscreenCanvas(width, height)
       const outCanvas = canvasRef.current!
       outCanvas.width = width
       outCanvas.height = height
+      console.timeEnd('canvas')
   
+      console.time('drawImage')
       const inCtx = inCanvas.getContext('2d')!
       inCtx.drawImage(video, 0, 0)
+      console.timeEnd('drawImage')
+      console.time('getImageData')
       const inImageData = inCtx.getImageData(0, 0, width, height)
+      console.timeEnd('getImageData')
+      console.time('wasm_getPtr')
       const inputImageBufferOffset = wasm._getInputImageBuffer()
+      console.timeEnd('wasm_getPtr')
+      console.time('HEAP')
       wasm.HEAPU8.set(inImageData.data, inputImageBufferOffset)
+      console.timeEnd('HEAP')
+      console.timeEnd()
   
       const startWasm = performance.now()
       try{
@@ -123,6 +135,8 @@ const App = () => {
         time: (Date.now() - startTime) / 1000,
         wasmDuration,
         jsDuration,
+        jsPreprocessDuration: startWasm - startJs,
+        jsPostprocessDuration: endJs - endWasm,
         preprocessDuration: wasm._getPreprocessDuration(),
         inferenceDuration: wasm._getInferenceDuration(),
         postprocessDuration: wasm._getPostprocessDuration()
@@ -175,6 +189,8 @@ const App = () => {
           <Line type="linear" dataKey="preprocessDuration" name="preproc time" stroke="#9d82ca" />
           <Line type="linear" dataKey="inferenceDuration" name="inference time" stroke="#829dca" />
           <Line type="linear" dataKey="postprocessDuration" name="postproc time" stroke="#ca9d82" />
+          <Line type="linear" dataKey="jsPreprocessDuration" name="JSpreproc time" stroke="#9d82ca" />
+          <Line type="linear" dataKey="jsPostprocessDuration" name="JSpostproc time" stroke="#9dca82" />
       </LineChart>
     </div>
   );
